@@ -1,5 +1,5 @@
 import os
-import json
+import requests # 👈 主角登场：它是用来上网的
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -10,82 +10,54 @@ client = OpenAI(
     base_url="https://api.deepseek.com"
 )
 
-def ai_todo_list(text):
-    print(f"正在分析日程：{text} ...")
-    
-    # ---------------------------------------------------
-    # 💀 你的任务：在这里写出完美的 Prompt
-    # 记得用 RTFC 公式：角色、任务、格式、约束
-    # ---------------------------------------------------
-
-    # 60分的简单prompt
-    # system_prompt = """
-    # 你是一个待办事项的小助手，你需要根据用户输入的内容，提取出每个事项的内容时间和优先级，优先级你自己判断，请给我严格的JSON列表，
-    # 不要返回我给我多余的信息，比如“这是你需要做的事情：”之类的
-    # """
-
-    # 满分的高级prompt
-    system_prompt = """
-    # Role
-    你是一个专业的日程管理助手。你的任务是从用户的自然语言中提取待办事项。
-
-    # Output Format
-    请仅输出一个纯 JSON 数组（Array），不要包含 ```json 代码块标记。
-    数组中的每个对象必须包含以下三个字段：
-    1. "event": (String) 事项的具体内容。
-    2. "time": (String) 时间描述。如果没提到时间，填 "待定"。
-    3. "priority": (String) 只能填 "高"、"中"、"低" 三者之一。
-
-    # Priority Rules (优先级判断标准)
-    - "高": 涉及工作截止日期、紧急会议、医疗健康。
-    - "中": 生活琐事、购物、普通约会。
-    - "低": 娱乐、没有明确期限的想法。
-
-    # Few-Shot Examples (照着这个学)
-    用户输入: "明天早上9点要把PPT发给老板，顺便帮我买杯咖啡。"
-    你的输出:
-    [
-        {"event": "发送PPT给老板", "time": "明天 09:00", "priority": "高"},
-        {"event": "买咖啡", "time": "明天", "priority": "中"}
-    ]
-
-    # Constraints
-    1. 如果用户输入的内容没有包含任何待办事项，返回空数组 []。
-    2. 严格遵守上述 Key 的命名（event, time, priority），禁止修改键名。
-    """
-
+# --- 工具函数：去网上抓取文字 ---
+def fetch_web_content(url):
+    print(f"正在抓取网页: {url} ...")
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": text}
-            ],
-            stream=False
-        )
+        # 1. 发送 GET 请求 (就像你在浏览器地址栏敲回车)
+        response = requests.get(url, timeout=10)
         
-        result = response.choices[0].message.content
-        data = json.loads(result)
-        return data
-
-    except json.JSONDecodeError:
-        print("解析失败！AI 可能没返回纯列表。")
-        print("AI 返回了：", result)
-        return None
+        # 2. 检查状态码 (200 代表成功，404 代表没找到)
+        if response.status_code == 200:
+            print("抓取成功！")
+            # 只取前 2000 个字，防止文章太长超过 AI 限制
+            return response.text[:2000] 
+        else:
+            print(f"抓取失败，状态码：{response.status_code}")
+            return None
     except Exception as e:
-        print(f"出错：{e}")
+        print(f"网络出错了：{e}")
         return None
+
+# --- 核心逻辑：抓取 + 总结 ---
+def ai_summarizer(url):
+    # 第一步：用 requests 拿到数据
+    content = fetch_web_content(url)
+    
+    if not content:
+        return "无法获取网页内容。"
+
+    # 第二步：把数据喂给 AI
+    system_prompt = """
+    你是一个信息摘要助手。
+    请阅读用户提供的网页源代码/文本，用一句简练的话总结这个网页是干什么的。
+    """
+    
+    response = client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"网页内容如下：\n{content}"}
+        ]
+    )
+    return response.choices[0].message.content
 
 if __name__ == "__main__":
-    # 模拟用户的语音输入
-    user_input = "后天上午提醒我给妈妈打电话，还有这周五之前要把PPT做完，对了，今晚要去买猫粮。"
+    # 我们拿 Python 官网的“关于”页面做测试
+    target_url = "https://peps.python.org/pep-0020/" 
+    # (这是著名的《Python之禅》页面)
     
-    todos = ai_todo_list(user_input)
-    
-    if todos:
-        print("\n✅ 提取成功！待办事项如下：")
-        print("---------------------------------")
-        # 这里用了一个循环，这是 Python 处理列表的方式
-        for item in todos:
-            print(f"[{item['priority']}] {item['time']} -> {item['event']}")
-        print("---------------------------------")
+    summary = ai_summarizer(target_url)
+    print("\n------ AI 总结结果 ------")
+    print(summary)
+    print("-------------------------")
