@@ -5,6 +5,20 @@ from backend.services import get_ai_response        # 导入大脑
 
 app = FastAPI(title="AI Agent Backend", version="1.0.0")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="AI Agent Backend")
+
+# --- 新增的代码开始 ---
+# 允许跨域请求（解决前端 5173 访问 8000 端口被浏览器拦截的问题）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 允许所有来源（生产环境要改成具体的域名）
+    allow_credentials=True,
+    allow_methods=["*"],  # 允许 GET, POST, OPTIONS 等所有方法
+    allow_headers=["*"],  # 允许所有 Header
+)
+
 @app.get("/")
 def health_check():
     return {"status": "running", "message": "Backend is online!"}
