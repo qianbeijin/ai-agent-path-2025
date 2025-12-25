@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from backend.schemas import ChatRequest, ChatResponse # 导入契约
 from fastapi.middleware.cors import CORSMiddleware
 # 👇 2. 引入我们刚才在 services.py 里写的函数
-from backend.services import add_document_to_db, get_ai_response
+from backend.services_practice import add_document_to_db, get_ai_response
 
 app = FastAPI(title="AI Agent Backend")
 

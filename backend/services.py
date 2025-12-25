@@ -7,6 +7,10 @@ import chromadb # 新增：引入 ChromaDB
 from sentence_transformers import SentenceTransformer
 from typing import List
 
+'''
+原始版本，新版本以Pratice为主
+'''
+
 load_dotenv()
 
 # --- 1. 定义适配器（转接头） ---
