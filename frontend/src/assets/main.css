@@ -1,10 +1,10 @@
 /* 1. 引入 Tailwind 核心样式 */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss'; /* v4 标准写法 */
 
 /* 2. 基础重置：确保容器占满全屏，且没有多余的边距 */
-html, body, #app {
+html,
+body,
+#app {
   height: 100%;
   width: 100%;
   margin: 0;
@@ -13,7 +13,13 @@ html, body, #app {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   background-color: #ffffff; /* 或者根据你的设计定色 */
 }
 
