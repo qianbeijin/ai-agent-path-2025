@@ -1,14 +1,19 @@
 <template>
-  <div class="p-3 bg-[#1e1f20]" style="border-radius: 24px">
+  <div class="py-3 pl-3 pr-5 bg-[#1e1f20]" style="border-radius: 24px">
     <el-input
-      v-model="inputContent"
+      v-model="userInput"
       type="textarea"
       :autosize="{ minRows: 1, maxRows: 6 }"
       placeholder="问问你的 AI..."
       class="gemini-input"
     />
     <div class="text-right mt-2">
-      <el-button type="" circle :disabled="!inputContent.trim()" @click="doSend">
+      <el-button
+        type=""
+        circle
+        :disabled="!userInput.trim() || charStore.isLoading"
+        @click="toSend"
+      >
         <el-icon :size="18"><Promotion /></el-icon>
       </el-button>
     </div>
@@ -18,9 +23,17 @@
 
 <script name="ChatInput" setup>
 import { ref } from 'vue'
-import { Plus, Promotion } from '@element-plus/icons-vue'
+import { Promotion } from '@element-plus/icons-vue'
+import { useChatStore } from '@/store/chat'
+import { ElMessage } from 'element-plus'
 
-const inputContent = ref('')
+const userInput = ref('')
+const charStore = useChatStore()
+
+async function toSend() {
+  const res = await charStore.sendMessage(userInput.value)
+  userInput.value = ''
+}
 </script>
 
 <style scoped>

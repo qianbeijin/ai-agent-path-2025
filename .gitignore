@@ -1,22 +1,16 @@
-.env
+# Python 缓存
 __pycache__/
+*.py[cod]
+*$py.class
+
+# 环境变量 (包含你的 API Key，绝对不能上传！)
+.env
+
+# 数据库与本地存储 (数据应在本地持久化，不随代码分发)
 chroma_db/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info/
+data/
+
+# 前端依赖与构建
+node_modules/
 dist/
-build/
-*.log
-*.sqlite3
-*.db
-.DS_Store
-Thumbs.db
 .vscode/
-.idea/
-*.swp
-*.swo
-*~

@@ -1,65 +1,49 @@
-# 【入口】只负责启动和路由分发
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from schemas import ChatRequest, ChatResponse # 导入契约
+import uvicorn
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# 👇 2. 引入我们刚才在 services.py 里写的函数
-from services import process_pdf_to_db, get_ai_response
-import shutil
-import os
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="AI Agent Backend")
+# 1. 导入配置中心和路由汇总
+from app.core.config import settings
+from app.api.api import api_router
 
-# --- 新增的代码开始 ---
-# 允许跨域请求（解决前端 5173 访问 8000 端口被浏览器拦截的问题）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 允许所有来源（生产环境要改成具体的域名）
-    allow_credentials=True,
-    allow_methods=["*"],  # 允许 GET, POST, OPTIONS 等所有方法
-    allow_headers=["*"],  # 允许所有 Header
+# 2. 定义生命周期管理 (Lifespan)
+# 30k 标准：在应用启动时初始化数据库连接，关闭时优雅释放资源
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 应用启动逻辑：比如打印模型加载路径
+    print(f"--- 正在从 {settings.EMBED_MODEL_PATH} 加载 Embedding 模型 ---")
+    yield
+    # 应用关闭逻辑
+    print("--- 正在关闭 AI 服务并清理资源 ---")
+
+# 3. 初始化 FastAPI 实例
+app = FastAPI(
+    title="Gemini-Style RAG AI Agent",
+    description="企业级 RAG 智能体后端服务",
+    version="1.0.0",
+    lifespan=lifespan
 )
 
-@app.get("/")
-def health_check():
-    return {"status": "running", "message": "Backend is online!"}
+# 4. 配置企业级 CORS (跨域资源共享)
+# 严禁直接写 ["*"]，应通过 .env 配置允许的来源
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # 你的 Vue 前端地址
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# 注意：response_model=ChatResponse 是关键
-# 它告诉 FastAPI：必须严格按照我们在 schemas 里定义的格式返回，多一个字段都不行
-@app.post("/chat", response_model=ChatResponse)
-def chat_endpoint(request: ChatRequest):
-    
-    # 1. 拿到数据 (已经经过 Pydantic 验证了，肯定是 str)
-    user_input = request.message
-    
-    # 2. 调用业务逻辑
-    ai_reply = get_ai_response(user_input)
-    
-    # 3. 组装返回 (情感分析暂时写死，后面再接逻辑)
-    return ChatResponse(
-        reply=ai_reply,
-        sentiment="neutral" 
+# 5. 挂载版本化路由汇总
+# 所有的接口现在都统一通过 /api 访问
+app.include_router(api_router, prefix="/api")
+
+# 6. 入口执行
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app", 
+        host="127.0.0.1", 
+        port=8000, 
+        reload=True  # 开发模式下开启热更新
     )
-
-@app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-
-   # 1. 后缀校验
-    if not file.filename.endswith(".pdf"):
-        # 抛出异常，告诉用户文件类型错误
-        raise HTTPException(status_code=400, detail="目前只支持 .pdf 文件")
-    
-    # 2.临时存储（落盘）
-    temp_path = f"temp_{file.filename}"
-    try: 
-        with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-            
-        # 3. 调用刚才写的 services 逻辑
-        detail = process_pdf_to_db(temp_path)
-        return {"status": "success", "message": detail}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"文件处理失败: {str(e)}")
-    finally:
-        # 4. 毁尸灭迹：无论成功失败，删掉临时文件
-        if os.path.exists(temp_path):
-            os.remove(temp_path)

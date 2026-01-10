@@ -6,7 +6,7 @@
 
     <el-container class="flex flex-col relative">
       <el-main class="flex-1">
-        <router-view />
+        <ChatBox class="h-full" />
       </el-main>
 
       <el-footer class="p-6">
@@ -21,6 +21,7 @@
 <script setup>
 import DocList from '../components/Sidebar/DocList.vue'
 import ChatInput from '../components/Chat/ChatInput.vue'
+import ChatBox from '../components/Chat/ChatBox.vue'
 </script>
 
 <style scoped>
