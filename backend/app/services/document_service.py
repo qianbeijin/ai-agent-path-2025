@@ -25,5 +25,6 @@ class DocumentService:
         """解析逻辑"""
         doc = pymupdf.open(file_path)
         full_text = self.clean_text("".join([page.get_text() for page in doc]))
+        print(full_text)
         doc.close()
         return full_text

@@ -1,7 +1,7 @@
 import os
 import uuid
 import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, AsyncGenerator
 
 # 导入你拆分出来的原子化服务
 from .vector_service import VectorService
@@ -51,14 +51,17 @@ class RAGFacade:
             logger.error(f"解析文件失败: {file_path}, 错误: {e}")
             raise Exception(f"文档解析入库失败: {str(e)}")
 
-    async def ask_question(self, user_input: str, history: List[Dict]) -> str:
+    async def ask_question_stream(self, user_input: str, history: List[Dict], doc_id: str = None) -> AsyncGenerator[str, None]:
         """
-        RAG 核心链路：检索 -> 拼 Prompt -> 调 LLM (完全对标 services.py 逻辑)
+        流式 RAG 链路：检索 -> 拼 Prompt -> 异步产生 Token
         """
         try:
-            # 1. 向量检索相关知识
-            # 原逻辑：collection.query 拿 n_results=3
-            search_results = self.vector_service.query(user_input, n_results=3)
+            # 2. 检索逻辑保持不变（必须先拿到上下文才能开始说话）
+            search_results = self.vector_service.query(
+                user_input, 
+                n_results=3,
+                doc_id=doc_id
+            )
             
             # 2. 阈值过滤与上下文构建
             # 原逻辑：threshold = 0.8
@@ -76,6 +79,7 @@ class RAGFacade:
             
             # 3. 构建动态 Prompt
             context_text = "\n".join(filtered_contexts)
+            print(filtered_contexts)
             if not filtered_contexts:
                 # 对应 services.py 中的“资料不足”处理逻辑
                 prompt = f"由于知识库中没有相关信息，你可以根据你的通用知识回答，但要声明这不是官方答案：{user_input}"
@@ -101,12 +105,15 @@ class RAGFacade:
                 {"role": "system", "content": "你是一个专业、风趣的 AI 助手。请根据你获得的知识内容进行回答。"}
             ] + history + [{"role": "user", "content": prompt}]
 
-            # 5. 调用 LLM 并返回
-            return await self.llm_service.generate_response(messages_to_send)
+            # 5. 🏆 核心重构：调用 LLM 的流式方法并 yield Token
+            # 注意：这里假设你的 llm_service 有一个名为 generate_response_stream 的生成器方法
+            async for chunk in self.llm_service.generate_response_stream(messages_to_send):
+                if chunk:
+                    yield chunk  # 实时将每一个字（Token）发送给上层接口
 
         except Exception as e:
-            logger.error(f"问答流程失败: {e}")
-            return "抱歉，我断片了，请再说一遍。"
+            logger.error(f"流式问答流程失败: {e}")
+            yield "抱歉，我的大脑信号有点不稳定，请尝试重新发送。"
         
     # app/services/rag_facade.py 增加以下方法
     async def get_document_list(self) -> list:

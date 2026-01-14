@@ -14,7 +14,7 @@
         <div
           v-for="doc in documentList"
           :key="doc.id"
-          @click="handleSelect(doc)"
+          @click="onSelect(doc)"
           :class="[
             'flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border',
             currentDocId === doc.id
@@ -63,7 +63,7 @@ import { ElMessage } from 'element-plus'
 // 1. 引入store
 const docStore = useDocumentStore()
 // 2. 使用 storeToRefs 保持解构后的响应式
-const { documentList, isUploading, currentDoc } = storeToRefs(docStore)
+const { documentList, isUploading, currentDocId } = storeToRefs(docStore)
 const fileList = ref([])
 
 // 3. 挂载时立即拉取列表

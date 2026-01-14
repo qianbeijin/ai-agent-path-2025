@@ -26,35 +26,49 @@ export const useChatStore = defineStore('chat', () => {
     const userMsg = { role: 'user', content: userInput }
     messages.value.push(userMsg)
 
+    // 插入一条空的 AI 消息占位
+    messages.value.push({ role: 'assistant', content: '' })
+    const assistantMsgIndex = messages.value.length - 1
     isLoading.value = true
 
-    const payload = {
-      message: userInput,
-      // 传递历史记录实现多轮对话，排除最后一条刚刚添加的消息
-      history: messages.value.slice(0, -1).map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-      // 核心：自动注入当前选中的文档 ID
-      docId: docStore.currentDocId,
-    }
     try {
-      const res = await chatApi.sendMessage(payload)
-      if (res.status == 'success') {
-        messages.value.push({
-          role: 'assistant',
-          content: res.answer,
-          sources: res.sources || [],
-        })
-      }
-    } catch (error) {
-      // 错误降级处理
-      messages.value.push({
-        role: 'assistant',
-        content: '抱歉，服务器暂时忙碌，我没能接收到您的消息。',
+      const response = await fetch('http://localhost:8000/api/v1/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userInput,
+          history: messages.value.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
+          docId: docStore.currentDocId, //
+        }),
       })
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        // 解析 SSE 格式数据 (data: {"text": "..."})
+        const lines = chunk.split('\n')
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6)
+            if (dataStr === '[DONE]') break
+
+            try {
+              const { text } = JSON.parse(dataStr)
+              // 🏆 核心：实时更新响应式数组中的最后一条消息
+              messages.value[assistantMsgIndex].content += text
+            } catch (e) {
+              /* 忽略心跳或空行 */
+            }
+          }
+        }
+      }
     } finally {
-      isLoading.value = false
+      isLoading.value = false //
     }
   }
 

@@ -15,3 +15,7 @@ class DocumentInfo(BaseModel):
 class DocumentListResponse(BaseModel):
     status: str = Field("success")
     data: List[DocumentInfo]
+
+class DeleteRequest(BaseModel):
+    # 🏆 使用 ID 彻底规避“同名文件”误删风险
+    file_id: str = Field(..., description="要删除的文档唯一 UUID")

@@ -31,7 +31,7 @@ export const useDocumentStore = defineStore('document', () => {
     formData.append('file', file)
 
     try {
-      const response = await documentApi.upload()
+      const response = await documentApi.upload(formData)
 
       if (response.status === 'success') {
         // 核心交互：上传完立即刷新列表

@@ -2,6 +2,8 @@
 from fastapi import APIRouter
 from app.schemas.chat import ChatRequest, ChatResponse # 导入刚才定义的模型
 from app.services.rag_facade import RAGFacade
+from fastapi.responses import StreamingResponse
+import json
 
 router = APIRouter()
 rag = RAGFacade()
@@ -13,13 +15,17 @@ async def chat_endpoint(request: ChatRequest):
     """
     # 核心：将 Pydantic 对象转为 RAGFacade 需要的原始类型
     history_data = [m.model_dump() for m in request.history]
+
+    # 定义一个生成器，将AI的回答逐字弹出
+    async def event_generator():
+        async for chunk in rag.ask_question_stream(
+            request.message, 
+            history_data, 
+            doc_id=request.docId
+        ):
+            # 必须符合 SSE 格式：data: 内容\n\n
+            yield f"data: {json.dumps({'text': chunk}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n" # 传输结束标志
+            
     
-    # 执行业务逻辑
-    ai_answer = await rag.ask_question(request.message, history_data)
-    
-    # 按照 Schema 结构返回数据
-    return ChatResponse(
-        status="success",
-        answer=ai_answer,
-        sources=[] # 这里以后可以对接真正的来源数据
-    )
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

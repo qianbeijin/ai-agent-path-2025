@@ -13,11 +13,15 @@ class VectorService:
             embedding_function=self.embed_fn
         )
 
-    def query(self, text: str, n_results: int = 3):
+    def query(self, text: str, n_results: int = 3, doc_id: str = None):
+        # 如果传了 doc_id，就构造 ChromaDB 的元数据过滤条件
+        # 这里的 "file_id" 必须是你入库时存入 metadata 的 key
+        where_filter = {"file_id": doc_id} if doc_id else None
         """纯粹的检索逻辑"""
         return self.collection.query(
             query_texts = [text],
             n_results = n_results,
+            where=where_filter,  # 🏆 只有加了这一行，数据库才会真正执行过滤
             include = ["documents", "distances", "metadatas"]
         )
 

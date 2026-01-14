@@ -25,14 +25,15 @@
 import { ref } from 'vue'
 import { Promotion } from '@element-plus/icons-vue'
 import { useChatStore } from '@/store/chat'
-import { ElMessage } from 'element-plus'
 
 const userInput = ref('')
 const charStore = useChatStore()
 
 async function toSend() {
-  const res = await charStore.sendMessage(userInput.value)
+  const text = userInput.value
   userInput.value = ''
+  // debugger
+  await charStore.sendMessage(text)
 }
 </script>
 

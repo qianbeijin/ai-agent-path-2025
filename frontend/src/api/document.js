@@ -5,8 +5,5 @@ export const documentApi = {
   getList: () => apiClient.get('/document/list'),
 
   // 上传文件
-  upload: (formData) =>
-    apiClient.post('/document/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    }),
+  upload: (formData) => apiClient.post('/document/upload', formData),
 }
